@@ -13,6 +13,30 @@ typedef struct Factors{
     Pow *factors;
 } Factors;
 
+Factors mul(Factors a, Factors b){
+    Factors res = {a.i*b.i, 0, malloc(sizeof(Pow)*(a.factors_count+b.factors_count))};
+    int j=0, size=0;
+    for(int i=0; i<a.factors_count; ++i){
+        while(j<b.factors_count && b.factors[j].base<a.factors[i].base){
+            res.factors[size++] = b.factors[j++];
+        }
+        if(b.factors[j].base==a.factors[i].base){
+            res.factors[size] = a.factors[i];
+            res.factors[size].exp += b.factors[j].exp;
+            ++size;
+        }
+        else{
+            res.factors[size++] = a.factors[i];
+        }
+    }
+    while(j<b.factors_count){
+       res.factors[size++] = b.factors[j++];
+    }
+    res.factors_count = size;
+    return res;
+}
+
+
 Factors decompose(ull i){ //  i < 2^50
     Factors ans = {i, .factors=malloc(4*sizeof(Pow))};
     unsigned size=0;

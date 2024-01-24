@@ -1,9 +1,11 @@
 '''This module allows you to prime factorize a number.'''
 
 from ctypes import CDLL, c_uint32, Structure, c_uint64, c_int16, POINTER
-from typing import Sequence
+from typing import Sequence, Self, Iterator, SupportsInt
+from itertools import product
 from math import prod
 
+PERFECT_NUMBERS = {6, 28, 496, 8128, 33550336, 8589869056, 0x1ffffc0000, 0x1fffffffc0000000}
 UPPER = ('⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹')
 UPPER_SKIP1 = ('⁰','','²','³','⁴','⁵','⁶','⁷','⁸','⁹')
 
@@ -37,29 +39,44 @@ class Pow(Structure):
         ('exp', c_int16),
     ]
 
+    def __init__(self, base: int, exp: int) -> None:
+        super().__init__(base, exp)
+
     def __iter__(self):
         yield self.base
         yield self.exp
 
+    def __index__(self) -> int:
+        return pow(self.base, self.exp)
+
+    def __getitem__(self, _x: int) -> int:
+        return (self.base, self.exp)[_x]
+
     def __repr__(self) -> str:
-        return f'{self.base}{upper(self.exp) if self.exp != 1 else ''}'
+        return f'{self.base}{upper(self.exp)*(self.exp!=1)}'
+
+def _factors_of_prime_pow(pp: Pow) -> list[int]:
+    base, exp = pp
+    return [pow(base, exp_) for exp_ in range(exp+1)]
 
 
 class Factorized(Structure):
-    '''Store prime factors of i, support [0, 2^32)'''
-    __slots__ = ('i', 'factors_count', '_factors')
+    '''Store prime factors of i, support [0, 2^50)'''
+    __slots__ = ('i', 'prime_factors_count', '__factors')
 
     i: int
-    factors_count: int
-    _factors: Sequence[Pow]
+    prime_factors_count: int
+    __factors: Sequence[Pow]
     _fields_ =[
         ('i', c_uint64),
-        ('factors_count', c_uint32),
-        ('_factors', POINTER(Pow))
+        ('prime_factors_count', c_uint32),
+        ('_Factorized__factors', POINTER(Pow))
     ]
 
-    def __new__(cls, _i: int, /):
-        if _i & 0xFF_FC_00_00_00_00_00_00: # assert _i<2^50
+    def __new__(cls, _i: int | Self, /) -> Self:
+        if isinstance(_i, Factorized):
+            return _i
+        if bits(_i) > 50: # assert _i<2^50
             raise ValueError('Too large to factorize.')
         if _i<0:
             raise ValueError('Integer should be greater than 0.')
@@ -67,40 +84,73 @@ class Factorized(Structure):
 
     def __str__(self) -> str:
         return f'{self.i}: {pi(f'{f.base}{_n0_s1_upper(f.exp)}'
-                            for f in self._factors[:self.factors_count])}'
+                            for f in self.__factors[:self.prime_factors_count])}'
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.i})'
 
     def __del__(self) -> None:
-        free_ptr(self._factors)
+        free_ptr(self.__factors)
 
-    def __iter__(self):
-        yield from self._factors[:self.factors_count]
+    def __iter__(self) -> Iterator[Pow]:
+        return iter(self.__factors[:self.prime_factors_count])
 
-    def prime_factor(self) -> list[int]:
+    def __getitem__(self, _i, /) -> Pow:
+        if _i >= self.prime_factors_count:
+            raise IndexError('Index out of range.')
+        return self.__factors[_i]
+
+    def __index__(self) -> int:
+        return self.i
+
+    def __mul__(self, _r: Self | SupportsInt) -> Self:
+        r = Factorized(int(_r))
+        new_i = self.i*r.i
+        if bits(new_i)>64:
+            raise ValueError('Too large to multiply.')
+        return _mul(self, r)
+
+    def prime_factors(self) -> list[int]:
         '''return all the prime factors of the number'''
-        return [f.base for f in self._factors[:self.factors_count]]
+        return [base for base, _ in self.__factors[:self.prime_factors_count]]
 
-    def numbers_of_factors(self) -> int:
+    def factors(self) -> set[int]:
+        '''get all the factors of the number'''
+        return {
+            prod(factor) for factor in
+            product(*map(_factors_of_prime_pow, self.__factors[:self.prime_factors_count]))
+        }
+
+    def factors_count(self) -> int:
         '''e.g. 3²×11¹ -> 3*2=6'''
-        return prod(q+1 for _, q in self._factors[:self.factors_count])
+        return prod(q+1 for _, q in self.__factors[:self.prime_factors_count])
 
-    def sum_of_factors(self) -> int:
+    def factors_sum(self) -> int:
         '''return the sum of all factors. e.g. 6 -> 1+2+3+6=12'''
         return prod(
-            (pow(factor, exp+1)-1)//(factor-1) for factor, exp in self._factors[:self.factors_count]
+            (pow(prime, exp+1)-1)//(prime-1) for
+            prime, exp in self.__factors[:self.prime_factors_count]
         )
 
     def is_prime(self) -> bool:
         '''return whether this is a prime number'''
-        if self.i<2:
-            return False
-        return self.factors_count == 1 and self._factors[0].exp == 1
+        return self.i > 1 and self.prime_factors_count == 1 and self.__factors[0].exp == 1
+
+    def is_square(self) -> bool:
+        '''return whether this is a perfect square number'''
+        return self.i < 2 or not \
+               any(exp & 1 for exp, _ in self.__factors[:self.prime_factors_count])
+
+    def is_perfect_number(self) -> bool:
+        '''return whether this is a perfect number'''
+        return self.i in PERFECT_NUMBERS
 
 _decompose = clib.decompose
-_decompose.argtypes = [c_uint32]
+_decompose.argtypes = [c_uint64]
 _decompose.restype = Factorized
+_mul = clib.mul
+_mul.argtypes = [Factorized, Factorized]
+_mul.restype = Factorized
 
 __all__ = [
     'Pow', 'Factorized'
