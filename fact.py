@@ -1,15 +1,22 @@
 '''This module allows you to prime factorize a number.'''
 
 from ctypes import CDLL, c_uint32, Structure, c_uint64, c_int16, POINTER
-from typing import Any, Sequence
+from typing import Sequence
 from math import prod
 
 UPPER = ('⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹')
+UPPER_SKIP1 = ('⁰','','²','³','⁴','⁵','⁶','⁷','⁸','⁹')
 
 pi = '×'.join
 connect = ''.join
 bits = int.bit_length
 
+
+def _n0_s1_upper(_i: int, /) -> str:
+    '''return upper form of input number (>=0)'''
+    if _i < 10 :
+        return UPPER_SKIP1[_i]
+    return connect(UPPER[(ord(o)-48)%10] for o in str(_i))
 
 def upper(_i: int, /) -> str:
     '''return upper form of input number'''
@@ -17,7 +24,7 @@ def upper(_i: int, /) -> str:
         return '⁻'+connect(UPPER[(ord(o)-48)%10] for o in str(-_i))
     return connect(UPPER[(ord(o)-48)%10] for o in str(_i))
 
-clib = CDLL('./factor.so')
+clib = CDLL('./fact.so')
 free_ptr = clib.free_ptr
 
 class Pow(Structure):
@@ -58,11 +65,9 @@ class Factorized(Structure):
             raise ValueError('Integer should be greater than 0.')
         return _decompose(_i)
 
-    def __init__(self, *args: Any, **kw: Any) -> None:
-        super().__init__(*args, **kw)
-
     def __str__(self) -> str:
-        return f'{self.i}: {pi(repr(self._factors[i]) for i in range(self.factors_count))}'
+        return f'{self.i}: {pi(f'{f.base}{_n0_s1_upper(f.exp)}'
+                            for f in self._factors[:self.factors_count])}'
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.i})'
