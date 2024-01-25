@@ -1,9 +1,9 @@
 '''This module allows you to prime factorize a number.'''
 
-from ctypes import CDLL, c_uint32, Structure, c_uint64, c_int16, POINTER
-from typing import Sequence, Self, Iterator, SupportsInt
+from ctypes import CDLL, c_uint32, Structure, c_uint64, c_int16, c_uint16, POINTER
+from typing import Sequence, Self, Iterator, SupportsIndex
 from itertools import product
-from math import prod
+from math import prod, gcd
 
 PERFECT_NUMBERS = {6, 28, 496, 8128, 33550336, 8589869056, 0x1ffffc0000, 0x1fffffffc0000000}
 UPPER = ('⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹')
@@ -14,8 +14,14 @@ connect = ''.join
 bits = int.bit_length
 
 
-def _n0_s1_upper(_i: int, /) -> str:
+def _n0_upper(_i: int, /) -> str:
     '''return upper form of input number (>=0)'''
+    if _i < 10 :
+        return UPPER[_i]
+    return connect(UPPER[(ord(o)-48)%10] for o in str(_i))
+
+def _n0_s1_upper(_i: int, /) -> str:
+    '''return upper form of input number (>=0), skip 1'''
     if _i < 10 :
         return UPPER_SKIP1[_i]
     return connect(UPPER[(ord(o)-48)%10] for o in str(_i))
@@ -31,7 +37,7 @@ free_ptr = clib.free_ptr
 
 class Pow(Structure):
     '''Represent base^exp'''
-    __slots__ = ('base', 'exp')
+
     base: int
     exp: int
     _fields_ = [
@@ -62,7 +68,6 @@ def _factors_of_prime_pow(pp: Pow) -> list[int]:
 
 class Factorized(Structure):
     '''Store prime factors of i, support [0, 2^50)'''
-    __slots__ = ('i', 'prime_factors_count', '__factors')
 
     i: int
     prime_factors_count: int
@@ -75,7 +80,7 @@ class Factorized(Structure):
 
     def __new__(cls, _i: int | Self, /) -> Self:
         if isinstance(_i, Factorized):
-            return _i
+            return _copy(_i)
         if bits(_i) > 50: # assert _i<2^50
             raise ValueError('Too large to factorize.')
         if _i<0:
@@ -83,8 +88,8 @@ class Factorized(Structure):
         return _decompose(_i)
 
     def __str__(self) -> str:
-        return f'{self.i}: {pi(f'{f.base}{_n0_s1_upper(f.exp)}'
-                            for f in self.__factors[:self.prime_factors_count])}'
+        return f'{self.i}: {pi(f'{base}{_n0_s1_upper(exp)}'
+                            for base, exp in self.__factors[:self.prime_factors_count])}'
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.i})'
@@ -103,8 +108,8 @@ class Factorized(Structure):
     def __index__(self) -> int:
         return self.i
 
-    def __mul__(self, _r: Self | SupportsInt) -> Self:
-        r = Factorized(int(_r))
+    def __mul__(self, _r: Self | int) -> Self:
+        r = _r if isinstance(_r, Factorized) else Factorized(_r)
         new_i = self.i*r.i
         if bits(new_i)>64:
             raise ValueError('Too large to multiply.')
@@ -145,13 +150,48 @@ class Factorized(Structure):
         '''return whether this is a perfect number'''
         return self.i in PERFECT_NUMBERS
 
+    def is_coprime_with(self, _r: SupportsIndex, /) -> bool:
+        '''return whether this is coprime with given number'''
+        return gcd(self, _r) == 1
+
+    def gcd_with(self, _r: Self | int, /) -> Self:
+        '''return the greatest common divisor of self and the other'''
+        r = _r if isinstance(_r, Factorized) else Factorized(_r)
+        if self.i and r.i:
+            return _gcd(self, r)
+        if self.i:
+            return _copy(self)
+        if r.i:
+            return _copy(r)
+        raise ValueError('gcd(0, 0) = inf.')
+
+    def expanded_str(self, skip1: bool = True) -> str:
+        '''e.g. 50 -> 2×5² if skip1 else 2¹×5²'''
+        up_func = _n0_s1_upper if skip1 else _n0_upper
+        return pi(
+            f'{base}{up_func(exp)}' for base, exp in self.__factors[:self.prime_factors_count]
+        )
+
+
 _decompose = clib.decompose
 _decompose.argtypes = [c_uint64]
 _decompose.restype = Factorized
+_copy = clib.copy
+_copy.argtypes = [Factorized]
+_copy.restype = Factorized
 _mul = clib.mul
 _mul.argtypes = [Factorized, Factorized]
 _mul.restype = Factorized
+_gcd = clib.gcd
+_gcd.argtypes = [Factorized, Factorized]
+_gcd.restype = Factorized
+
+__p16_p = clib.get_prime16_p
+__p16_p.argtypes = []
+__p16_p.restype = POINTER(c_uint16)
+
+PRIME16: c_int16*6542 = __p16_p()[:6542]
 
 __all__ = [
-    'Pow', 'Factorized'
+    'Pow', 'Factorized', 'PRIME16'
 ]
