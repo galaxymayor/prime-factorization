@@ -1,6 +1,6 @@
 '''This module allows you to prime factorize a number.'''
 
-from ctypes import CDLL, c_uint32, Structure, c_uint64, c_int16, c_uint16, POINTER
+from ctypes import CDLL, c_uint32, Structure, c_uint64, c_int16, c_uint16, POINTER, byref
 from typing import Sequence, Self, Iterator, SupportsIndex
 from itertools import product
 from math import prod, gcd
@@ -78,7 +78,7 @@ class Factorized(Structure):
         ('_Factorized__factors', POINTER(Pow))
     ]
 
-    def __new__(cls, _i: int | Self, /) -> Self:
+    def __new__(cls, _i: int | Self, /):
         if isinstance(_i, Factorized):
             return _copy(_i)
         if bits(_i) > 50: # assert _i<2^50
@@ -86,6 +86,9 @@ class Factorized(Structure):
         if _i<0:
             raise ValueError('Integer should be greater than 0.')
         return _decompose(_i)
+
+    def __init__(self, _i: int | Self, /) -> None:
+        pass
 
     def __str__(self) -> str:
         return f'{self.i}: {pi(f'{base}{_n0_s1_upper(exp)}'
@@ -108,12 +111,22 @@ class Factorized(Structure):
     def __index__(self) -> int:
         return self.i
 
-    def __mul__(self, _r: Self | int) -> Self:
+    def __mul__(self, _r: 'Factorized | int') -> 'Factorized':
         r = _r if isinstance(_r, Factorized) else Factorized(_r)
-        new_i = self.i*r.i
-        if bits(new_i)>64:
+        if bits(self.i)+bits(r.i)>64:
             raise ValueError('Too large to multiply.')
         return _mul(self, r)
+
+    def __pow__(self, exp: int, mod: None | int=None) -> 'Factorized':
+        assert exp >=0, 'not support nagative power'
+        if mod:
+            return Factorized(pow(self.i, exp, mod))
+        return _pow(self, exp)
+
+    def __ipow__(self, exp: int) -> 'Factorized':
+        assert exp >=0, 'not support nagative power'
+        _ipow(byref(self), exp)
+        return self
 
     def prime_factors(self) -> list[int]:
         '''return all the prime factors of the number'''
@@ -154,7 +167,7 @@ class Factorized(Structure):
         '''return whether this is coprime with given number'''
         return gcd(self, _r) == 1
 
-    def gcd_with(self, _r: Self | int, /) -> Self:
+    def gcd_with(self, _r: 'Factorized | int', /) -> 'Factorized':
         '''return the greatest common divisor of self and the other'''
         r = _r if isinstance(_r, Factorized) else Factorized(_r)
         if self.i and r.i:
@@ -185,6 +198,12 @@ _mul.restype = Factorized
 _gcd = clib.gcd
 _gcd.argtypes = [Factorized, Factorized]
 _gcd.restype = Factorized
+_pow = clib._pow   # pylint: disable = protected-access
+_pow.argtypes = [Factorized, c_uint32]
+_pow.restype = Factorized
+_ipow = clib._ipow # pylint: disable = protected-access
+_ipow.argtypes = [POINTER(Factorized), c_uint32]
+_ipow.restype = None
 
 __p16_p = clib.get_prime16_p
 __p16_p.argtypes = []

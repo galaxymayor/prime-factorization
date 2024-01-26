@@ -1,5 +1,6 @@
 #include"prime16.c"
 #include<stdlib.h>
+#include<string.h>
 
 #define ull unsigned long long
 typedef struct Pow{
@@ -13,12 +14,16 @@ typedef struct Factors{
     Pow *factors;
 } Factors;
 
+Factors new(ull i, unsigned size, Pow * factors){
+    Pow *ps = malloc(size*sizeof(Pow));
+    memcpy(ps, factors, sizeof(Pow)*size);
+    return (Factors){i, size, ps};
+}
+
 Factors copy(Factors f){
-    Pow *p = malloc(sizeof(Pow)*(f.factors_count));
-    for(int i=0; i<f.factors_count; ++i){
-        p[i] = f.factors[i];
-    }
-    return (Factors){f.i, f.factors_count, p};
+    Pow *ps = malloc(sizeof(Pow)*(f.factors_count));
+    memcpy(ps, f.factors, sizeof(Pow)*(f.factors_count));
+    return (Factors){f.i, f.factors_count, ps};
 }
 
 Factors mul(Factors a, Factors b){
@@ -46,8 +51,44 @@ Factors mul(Factors a, Factors b){
     return res;
 }
 
+Factors _pow(Factors f, unsigned exp){
+    if(exp==0){
+        return (Factors){1, 0, NULL};
+    }
+    Factors res = copy(f);
+    ull tmp = f.i;
+    for(unsigned i=exp; i; i>>=1){
+        if(i & 1){
+            res.i *= tmp;
+        }
+        tmp *= tmp;
+    }
+    for(int i=0; i<f.factors_count; ++i){
+        res.factors[i].exp *= exp;
+    }
+    return res;
+}
 
-Factors gcd(Factors a, Factors b){
+void _ipow(Factors *fp, unsigned exp){
+    if(fp->i == 0){
+        free(fp->factors);
+        *fp = (Factors){1, 0, NULL};
+        return;
+    }
+    ull tmp = fp->i;
+    fp->i = 1;
+    for(unsigned i=exp; i; i>>=1){
+        if(i & 1){
+            fp->i *= tmp;
+        }
+        tmp *= tmp;
+    }
+    for(int i=0; i<fp->factors_count; ++i){
+        fp->factors[i].exp *= exp;
+    }
+}
+
+Factors gcd(Factors a, Factors b){ // a, b != 0
     Factors res = {1, 0, malloc(sizeof(Pow)*__min(a.factors_count, b.factors_count))};
     int i=0, j=0, size=0;
     while(i<a.factors_count && j<b.factors_count){
