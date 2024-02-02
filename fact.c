@@ -3,6 +3,8 @@
 #include<string.h>
 
 #define ull unsigned long long
+#define min(a, b) ((a)<(b)?(a):(b))
+
 typedef struct Pow{
     ull base;
     short exp;
@@ -89,12 +91,12 @@ void _ipow(Factors *fp, unsigned exp){
 }
 
 Factors gcd(Factors a, Factors b){ // a, b != 0
-    Factors res = {1, 0, malloc(sizeof(Pow)*__min(a.factors_count, b.factors_count))};
+    Factors res = {1, 0, malloc(sizeof(Pow)*min(a.factors_count, b.factors_count))};
     int i=0, j=0, size=0;
     while(i<a.factors_count && j<b.factors_count){
         if(b.factors[j].base==a.factors[i].base){
             res.factors[size].base = a.factors[i].base;
-            res.factors[size].exp = __min(a.factors[i].exp, b.factors[j].exp);
+            res.factors[size].exp = min(a.factors[i].exp, b.factors[j].exp);
             ++size, ++i, ++j;
         }
         else{
