@@ -3,7 +3,7 @@
 #include<string.h>
 
 #define ull unsigned long long
-#define min(a, b) ((a)<(b)?(a):(b))
+#define MIN(a, b) ((a)<(b)?(a):(b))
 
 typedef struct Pow{
     ull base;
@@ -26,6 +26,12 @@ Factors copy(Factors f){
     Pow *ps = malloc(sizeof(Pow)*(f.factors_count));
     memcpy(ps, f.factors, sizeof(Pow)*(f.factors_count));
     return (Factors){f.i, f.factors_count, ps};
+}
+
+size_t as_ptr(Factors f){
+    Factors *fs = malloc(sizeof(Factors));
+    *fs = f;
+    return fs;
 }
 
 Factors mul(Factors a, Factors b){
@@ -91,12 +97,12 @@ void _ipow(Factors *fp, unsigned exp){
 }
 
 Factors gcd(Factors a, Factors b){ // a, b != 0
-    Factors res = {1, 0, malloc(sizeof(Pow)*min(a.factors_count, b.factors_count))};
+    Factors res = {1, 0, malloc(sizeof(Pow)*MIN(a.factors_count, b.factors_count))};
     int i=0, j=0, size=0;
     while(i<a.factors_count && j<b.factors_count){
         if(b.factors[j].base==a.factors[i].base){
             res.factors[size].base = a.factors[i].base;
-            res.factors[size].exp = min(a.factors[i].exp, b.factors[j].exp);
+            res.factors[size].exp = MIN(a.factors[i].exp, b.factors[j].exp);
             ++size, ++i, ++j;
         }
         else{
@@ -112,14 +118,51 @@ Factors gcd(Factors a, Factors b){ // a, b != 0
     return res;
 }
 
+
+Factors decompose_u32(unsigned i){ //  i < 2^32
+    Factors ans = {i, .factors=malloc(4*sizeof(Pow))};
+    unsigned size=0;
+    unsigned capacity = 4;
+
+    unsigned p;
+    for(int o=0; o<6542 && SQ_PRIME16[o]<=i; ++o){
+        if(i % (p = PRIME16[o])){
+            continue;
+        }
+
+        if(size == capacity){
+            capacity += 3;
+            ans.factors = realloc(ans.factors, capacity*sizeof(Pow));
+        }
+        ans.factors[size++] = (Pow){p, 0};
+
+        do{
+            i/=p;
+            ans.factors[size-1].exp++;
+        }while(!(i%p));
+    }
+
+    if(i==1){
+        ans.factors_count = size;
+        return ans;
+    }
+
+    if(size == capacity){
+        ans.factors = realloc(ans.factors, (++capacity)*sizeof(Pow));
+    }
+    ans.factors[size++] = (Pow){i, 1};
+    ans.factors_count = size;
+    return ans;
+}
+
 Factors decompose(ull i){ //  i < 2^50
     Factors ans = {i, .factors=malloc(4*sizeof(Pow))};
     unsigned size=0;
     unsigned capacity = 4;
 
     ull p;
-    for(int o=0; o<6542 && (p = PRIME16[o], p*p<=i); ++o){
-        if(i % p){
+    for(int o=0; o<6542 && SQ_PRIME16[o]<=i; ++o){
+        if(i % (p = PRIME16[o])){
             continue;
         }
 
@@ -196,7 +239,15 @@ unsigned short int* get_prime16_p(){
     return PRIME16;
 }
 
+unsigned int* get_sq_prime16_p(){
+    return SQ_PRIME16;
+}
+
 void free_ptr(void *_Memory){
+    free(_Memory);
+}
+
+void free_ptr_size_t(size_t _Memory){
     free(_Memory);
 }
 //test 
