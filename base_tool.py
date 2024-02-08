@@ -5,7 +5,10 @@ from itertools import product
 from math import gcd, prod
 from typing import Iterator, Self, Sequence, SupportsIndex
 
-from kind_of_int import have_int, to_int
+try:
+    from .comparable import have_int, to_int
+except ImportError:
+    from comparable import have_int, to_int
 
 
 class PowBase(to_int(lambda self: pow(*self))):
@@ -65,10 +68,15 @@ def _factors_of_prime_pow(pp: PowBase) -> list[int]:
 
 class FactedBase[P: PowBase](have_int('i')):
     '''Having essentialmathod and attributes of a factorized number'''
+    __slots__ = ()
+
     i: int
     prime_factors_count: int
     prime_factors_pows: Sequence[P]
 
+
+    def __eq__(self, __value: SupportsIndex) -> bool:
+        return self.i == int(__value)
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.i})'

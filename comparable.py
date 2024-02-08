@@ -23,10 +23,6 @@ def have_int(int_name: str):
             return get_attr(self, int_name) >= int(__r)
         def __le__(self, __r: SupportsIndex) -> bool:
             return get_attr(self, int_name) <= int(__r)
-        def __eq__(self, __r: SupportsIndex) -> bool:
-            return get_attr(self, int_name) == int(__r)
-        def __ne__(self, __r: SupportsIndex) -> bool:
-            return get_attr(self, int_name) != int(__r)
     return HaveInt
 
 
@@ -46,8 +42,4 @@ def to_int(func: Callable[[Any], int]):
             return func(self) >= int(__r)
         def __le__(self, __r: SupportsIndex) -> bool:
             return func(self) <= int(__r)
-        def __eq__(self, __r: SupportsIndex) -> bool:
-            return func(self) == int(__r)
-        def __ne__(self, __r: SupportsIndex) -> bool:
-            return func(self) != int(__r)
     return ToInt

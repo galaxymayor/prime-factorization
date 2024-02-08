@@ -2,7 +2,7 @@
 
 
 from ctypes import c_uint32, Structure, c_uint64, c_int16, POINTER
-from typing import Callable, Self, Iterator, final
+from typing import Callable, Self, Iterator, SupportsIndex, final
 
 try:
     from .base_tool import PowBase, FactedBase, _n0_s1_upper, pi, bits
@@ -43,7 +43,7 @@ class N0PowC(Structure, PowBase):
     def __int__(self) -> int:
         return pow(self.base, self.exp)
 
-    def __getitem__(self, _x: int) -> int:
+    def __getitem__(self, _x: SupportsIndex) -> int:
         return (self.base, self.exp)[_x]
 
     def __str__(self) -> str:
@@ -105,7 +105,7 @@ class FactorizedC(Structure, FactedBase):
     def __iter__(self) -> Iterator[N0PowC]:
         return iter(self.prime_factors_pows)
 
-    def __getitem__(self, _i, /) -> N0PowC:
+    def __getitem__(self, _i: SupportsIndex, /) -> N0PowC:
         return self.prime_factors_pows[_i]
 
     def __index__(self) -> int:
