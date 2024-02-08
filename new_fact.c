@@ -37,7 +37,7 @@ size_t copy(size_t f){
 size_t mul(size_t a, size_t b){
     Factors * restrict res = NEW_FACT;
     *res = (Factors){((Factors*)a)->i*((Factors*)b)->i, 0, malloc(sizeof(Pow)*(((Factors*)a)->factors_count+((Factors*)b)->factors_count))};
-    int i=0, j=0, size=0;
+    unsigned i=0, j=0, size=0;
     while(i<((Factors*)a)->factors_count && j<((Factors*)b)->factors_count){
         if(((Factors*)b)->factors[j].base==((Factors*)a)->factors[i].base){
             res->factors[size].base = ((Factors*)a)->factors[i].base;
@@ -75,7 +75,7 @@ size_t _pow(size_t f, unsigned exp){
         }
         tmp *= tmp;
     }
-    for(int i=0; i<((Factors*)f)->factors_count; ++i){
+    for(unsigned i=0; i<((Factors*)f)->factors_count; ++i){
         res->factors[i].exp *= exp;
     }
     return res;
@@ -95,7 +95,7 @@ void _ipow(size_t fp, unsigned exp){
         }
         tmp *= tmp;
     }
-    for(int i=0; i<((Factors*)fp)->factors_count; ++i){
+    for(unsigned i=0; i<((Factors*)fp)->factors_count; ++i){
         ((Factors*)fp)->factors[i].exp *= exp;
     }
 }
@@ -160,7 +160,7 @@ size_t decompose_u32(unsigned i){ //  i < 2^32
     return ans;
 }
 
-size_t decompose(ull i){ //  i < 2^50
+size_t decompose(ull i){ //  i < 2^52
     Factors * restrict ans = NEW_FACT;
     *ans = (Factors){i, .factors=malloc(4*sizeof(Pow))};
     unsigned size=0;
@@ -225,7 +225,7 @@ size_t decompose(ull i){ //  i < 2^50
             }while(!(i%test));
         }
         test+=4;
-    }while(test<33554432&&test*test<=i); // 2^25
+    }while(test<4294967296 && test*test<=i); // 2^32 to ignore overflow
 
     if(i==1){
         ans->factors_count = size;

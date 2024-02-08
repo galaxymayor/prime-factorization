@@ -25,7 +25,7 @@ class PowBase(to_int(lambda self: pow(*self))):
         return self.base == __r.base and self.exp == __r.exp
 
 
-
+POW_2_52 = 4503599627370496
 POW_2_50 = 1125899906842624
 POW_2_32 = 4294967296
 PERFECT_NUMBERS = {6, 28, 496, 8128, 33550336, 8589869056, 0x1ffffc0000, 0x1fffffffc0000000}

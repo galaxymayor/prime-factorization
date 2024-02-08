@@ -2,18 +2,35 @@
 from math import prod
 from itertools import chain
 from unittest import main, TestCase
-from fact_c import FactorizedC, N0PowC
+from fact_c import FactorizedC, N0PowC, decompose
 
-_HIGH_START = 0x00_03_ff_ff_ff_ff_ff_00
-_HIGH_END   = 0x00_04_00_00_00_00_00_00
+_HIGH_START = 0x00_0f_ff_ff_ff_ff_ff_80
+_HIGH_END   = 0x00_10_00_00_00_00_00_00
 _HIGH_RANGE = range(_HIGH_START, _HIGH_END)
-
 _MID_RANGE = range((1<<32)-128, 1<<32)
-
 _LOW_RANGE = range(128)
 
-class TestPowC(TestCase):
-    '''Test class PowC'''
+
+class TestFuncDecompose(TestCase):
+    '''Test decompose'''
+
+    def test_class(self):
+        '''test the output class matches type hints'''
+        self.assertEqual(decompose(10).__class__, FactorizedC)
+
+    def test_domain(self):
+        with self.subTest(cat='out of domain'):
+            self.assertRaises(OverflowError, decompose, 1<<64)
+            self.assertRaises(OverflowError, decompose, -1)
+        i = 2**63
+        while i:
+            with self.subTest(cat='in domain', i=bin(i)):
+                self.assertEqual(decompose(i), i)
+            i>>=1
+
+
+class TestN0PowC(TestCase):
+    '''Test class N0PowC'''
     def test_pow_repr(self):
         '''test if it represents correctly'''
         sub = self.subTest
@@ -36,6 +53,14 @@ class TestPowC(TestCase):
 class TestFactorizedC(TestCase):
     '''Test class FactorizedC'''
 
+
+    def test_repr(self):
+        sub = self.subTest
+        as_eq = self.assertEqual
+        for i in chain(_LOW_RANGE, _HIGH_RANGE):
+            with sub(i=i):
+                as_eq(eval(repr(FactorizedC(i))), FactorizedC(i))
+
     def test_mul(self):
         '''test if it multipies correctly'''
         sub = self.subTest
@@ -49,6 +74,21 @@ class TestFactorizedC(TestCase):
                     as_eq(facted0.prime_factors_count, facted1.prime_factors_count)
                     for p0, p1 in zip(facted0, facted1):
                         as_eq(p0, p1)
+
+    def test_pow(self):
+        '''test if it powers correctly'''
+        sub = self.subTest
+        as_eq = self.assertEqual
+        for base in range(10):
+            f = FactorizedC(base)
+            as_eq(f**0, 1)
+            for exp in range(1, 5):
+                fp = f**exp
+                with sub(base=base, exp=exp):
+                    as_eq(f.prime_factors_count, fp.prime_factors_count)
+                    for i, j in zip(f, fp):
+                        as_eq(i.base, j.base)
+                        as_eq(i.exp * exp, j.exp)
 
     def test_int_correct(self):
         '''test if it represents int correctly'''
@@ -68,9 +108,9 @@ class TestFactorizedC(TestCase):
         '''test if it raises error when out of domain'''
         sub = self.subTest
         with sub(i=-1):
-            self.assertRaises(ValueError, FactorizedC, -1)
-        with sub(i=2**50):
-            self.assertRaises(ValueError, FactorizedC, 2**50)
+            self.assertRaises(OverflowError, FactorizedC, -1)
+        with sub(i=2**64):
+            self.assertRaises(OverflowError, FactorizedC, 2**64)
 
     def test_factorizes_correct(self):
         '''test if it factorizes correctly'''
@@ -105,7 +145,7 @@ class TestFactorizedC(TestCase):
         sub = self.subTest
         as_t = self.assertTrue
 
-        for i in (2, 7, 13, 31, 1125899906842589, 1125899906842597):
+        for i in (2, 7, 13, 31, 1125899906842589, 1125899906842597, 18446744073709551557):
             with sub(i=i):
                 as_t(FactorizedC(i).is_prime())
 
@@ -125,7 +165,7 @@ class TestFactorizedC(TestCase):
             with sub(i=i):
                 facted = FactorizedC(i)
                 as_eq(facted.prime_factors_count, len(ans))
-                for (fb, fe), (ab, ae) in zip(FactorizedC(i), ans):
+                for (fb, fe), (ab, ae) in zip(facted, ans):
                     as_eq(fb, ab)
                     as_eq(fe, ae)
 

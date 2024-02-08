@@ -5,13 +5,13 @@ from ctypes import c_uint32, Structure, c_uint64, c_int16, POINTER
 from typing import Callable, Self, Iterator, final
 
 try:
-    from .base_tool import PowBase, FactedBase, POW_2_50, _n0_s1_upper, pi, bits
+    from .base_tool import PowBase, FactedBase, _n0_s1_upper, pi, bits
     from .new_fact import \
         decompose as dcp, free_facted, \
             copy as __copy, mul as __mul, gcd as __gcd, _pow as __pow, _ipow, \
                 PRIME16, SQ_PRIME16
 except ImportError:
-    from base_tool import PowBase, FactedBase, POW_2_50, _n0_s1_upper, pi, bits
+    from base_tool import PowBase, FactedBase, _n0_s1_upper, pi, bits
     from new_fact import \
         decompose as dcp, free_facted, \
             copy as __copy, mul as __mul, gcd as __gcd, _pow as __pow, _ipow, \
@@ -86,8 +86,8 @@ class FactorizedC(Structure, FactedBase):
         ('_FactorizedC__factors', POINTER(N0PowC))
     ]
 
-    def __new__(cls, _i: int | Self, /):
-        return _copy(_i) if isinstance(_i, FactorizedC) else decompose(_i)
+    def __new__(cls, _i: int, /):
+        return decompose(_i)
 
     def __init__(self, *_args, **_kwargs) -> None:
         pass
@@ -114,17 +114,20 @@ class FactorizedC(Structure, FactedBase):
     def __mul__(self, _r: 'FactorizedC | int') -> 'FactorizedC':
         r = _r if isinstance(_r, FactorizedC) else decompose(_r)
         if bits(self.i) + bits(r.i) > 64:
-            raise ValueError('Too large to multiply.')
+            raise OverflowError('Too large to multiply.')
         return _mul(self, r)
 
     def __pow__(self, exp: int, mod: None | int = None) -> 'FactorizedC':
-        assert exp >= 0, 'not support negative power'
         if mod:
             return decompose(pow(self.i, exp, mod))
+
+        if (bits(self.i) + 1) * exp > 64:
+            raise OverflowError('Too large to power.')
         return _pow(self, exp)
 
     def __ipow__(self, exp: int) -> Self:
-        assert exp >= 0, 'not support negative power'
+        if (bits(self.i) + 1) * exp > 64:
+            raise OverflowError('Too large to power.')
         _ipow(self.address, exp)
         return self
 
@@ -173,11 +176,30 @@ def _1arg_facted_initfy[T](func: FactedFunc[T]) -> FactedFunc[T]:
 get_facted = FactorizedC.from_address
 
 
-def decompose(i: int, /) -> FactorizedC:
-    '''Input a number prime factorizes it, support range [0, 2^50)'''
+def _decompose(i: int, /) -> FactorizedC:
+    '''No cache. Input a number prime factorizes it, support range [0, 2^64)'''
     # pylint: disable = protected-access
-    if not 0 <= i < POW_2_50:
-        raise ValueError('{i} is out of supported range: [0, 2^50).')
+    facted = get_facted(address := dcp(i))
+    facted.prime_factors_pows = facted._FactorizedC__factors[:facted.prime_factors_count]
+    facted.address = address
+    return facted
+
+
+_fact_cache = [_decompose(i) for i in range(512)]
+
+
+class TLEWarning(UserWarning):
+    '''To warn it might consume too much time'''
+
+
+def decompose(i: int, /) -> FactorizedC:
+    '''\
+        Cached 0-511.
+        Input a number prime factorizes it.
+        time safe range [0, 2^52] (won\'t check).'''
+    # pylint: disable = protected-access
+    if 0 <= i < 512:
+        return _fact_cache[i]
     facted = get_facted(address := dcp(i))
     facted.prime_factors_pows = facted._FactorizedC__factors[:facted.prime_factors_count]
     facted.address = address

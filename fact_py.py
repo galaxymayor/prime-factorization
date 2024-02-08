@@ -89,7 +89,8 @@ class FactorizedPy(FactedBase):
             self.prime_factors_pows = tuple(N0Pow(base, exp) for base, exp in i)
             return
 
-        # assert isinstance(i, int)
+        if i < 0:
+            raise OverflowError(f'{i} is out of domain.')
 
         self.i = i
         if pfc:
@@ -99,7 +100,10 @@ class FactorizedPy(FactedBase):
             self.prime_factors_pows = pfs
             return
 
-        if i < 4294967296:  # 2**32
+        if i < 512:
+            self.prime_factors_count = _fact_cache[i].prime_factors_count
+            self.prime_factors_pows = _fact_cache[i].prime_factors_pows
+        elif i < 524288:
             self.prime_factors_pows = fs = _factorize_u32(i)
             self.prime_factors_count = len(fs)
         else:
@@ -113,6 +117,9 @@ class FactorizedPy(FactedBase):
 
 
     # def __mul__(self, _r: Sequence[N0Pow | PowC]) -> Self:
+
+
+_fact_cache = [FactorizedPy(decompose(i)) for i in range(512)]
 
 
 def _factorize_u32(i: int) -> tuple[N0Pow, ...]:

@@ -59,9 +59,10 @@ void free_ptr(void *_Memory);
 void free_address(size_t _Memory);
 void free_facted(size_t fp);
 """,
- sources = ['new_fact.c'],
- library_dirs = [],
- libraries = [],
+    sources = ['new_fact.c'],
+    library_dirs = [],
+    libraries = [],
+    extra_compile_args=["-O2"]
 )
 
 if __name__ == '__main__':

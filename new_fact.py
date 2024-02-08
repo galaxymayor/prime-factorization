@@ -19,5 +19,5 @@ free_address: Callable[[int], int]
 free_facted: Callable[[int], int]
 
 
-PRIME16: list[int] = get_prime16_p()[0:6542]
-SQ_PRIME16: list[int] = get_sq_prime16_p()[0:6542]
+PRIME16: list[int] = list(get_prime16_p()[0:6542])
+SQ_PRIME16: list[int] = list(get_sq_prime16_p()[0:6542])
