@@ -19,6 +19,7 @@ class TestFuncDecompose(TestCase):
         self.assertEqual(decompose(10).__class__, FactorizedC)
 
     def test_domain(self):
+        '''test if the domain is right'''
         with self.subTest(cat='out of domain'):
             self.assertRaises(OverflowError, decompose, 1<<64)
             self.assertRaises(OverflowError, decompose, -1)
@@ -55,6 +56,7 @@ class TestFactorizedC(TestCase):
 
 
     def test_repr(self):
+        '''test if it represents correctly'''
         sub = self.subTest
         as_eq = self.assertEqual
         for i in chain(_LOW_RANGE, _HIGH_RANGE):
